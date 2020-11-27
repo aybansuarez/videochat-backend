@@ -102,6 +102,7 @@ app.post('/delete-room-reference', async (req, res) => {
 });
 
 // SOCKET
+// socket.io is used to send realtime updates to client when onSnapShot is fired
 io.on('connection', socket => {
   console.log('connected');
 
