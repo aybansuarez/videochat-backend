@@ -49,28 +49,29 @@ app.post('/add-caller-candidates', async (req, res) => {
       room: db.Types.ObjectId(req.body.room),
       ...req.body.candidate
     })
-
+    await caller.save();
     res.json(caller);
   } catch (err) {
     res.status(400).send(err);
   }
 });
 
-// app.post('/add-callee-candidates', async (req, res) => {
-//   try {
-//     const roomRef = await db.collection('rooms').doc(req.body.room);
-//     const calleeCandidates = roomRef.collection('calleeCandidates');
-//     calleeCandidates.add(req.body.candidate);
-
-//     res.json(calleeCandidates);
-//   } catch (err) {
-//     res.status(400).send(err);
-//   }
-// });
-
-app.post('/add-room-reference', async (req, res) => {
+app.post('/add-callee-candidates', async (req, res) => {
   try {
-    const room = new Room(req.body.data)
+    const callee = new Callee({
+      room: db.Types.ObjectId(req.body.room),
+      ...req.body.candidate
+    })
+    await callee.save();
+    res.json(callee);
+  } catch (err) {
+    res.status(400).send(err);
+  }
+});
+
+app.post('/create-room-reference', async (req, res) => {
+  try {
+    const room = new Room()
     await room.save();
 
     res.json(room._id);
@@ -79,27 +80,37 @@ app.post('/add-room-reference', async (req, res) => {
   }
 });
 
-// app.post('/update-room-reference', async (req, res) => {
-//   try {
-//     const roomRef = await db.collection('rooms').doc(req.body.room);
-//     await roomRef.update(req.body.data);
+app.post('/set-room-reference/:id', async (req, res) => {
+  try {
+    const room = await Room.findById(req.params.id);
+    room.offer = req.body.data;
+    await room.save();
+    res.json(room._id);
+  } catch (err) {
+    res.status(400).send(err);
+  }
+});
 
-//     res.json(roomRef);
-//   } catch (err) {
-//     res.status(400).send(err);
-//   }
-// });
+app.post('/update-room-reference', async (req, res) => {
+  try {
+    const room = await Room.findById(req.params.id);
+    room.answer = req.body.data;
+    await room.save();
+    res.json(room._id);
+  } catch (err) {
+    res.status(400).send(err);
+  }
+});
 
-// app.get('/join-room-reference/:id', async (req, res) => {
-//   try {
-//     const roomRef = await db.collection('rooms').doc(req.params.id);
-//     const roomSnapshot = await roomRef.get();
+app.get('/join-room-reference/:id', async (req, res) => {
+  try {
+    const room = await Room.findById(req.params.id);
 
-//     res.json({ offer: roomSnapshot.data().offer, exists: roomSnapshot.exists });
-//   } catch (err) {
-//     res.status(400).send(err);
-//   }
-// });
+    res.json({ offer: room.offer });
+  } catch (err) {
+    res.status(400).send(err);
+  }
+});
 
 // app.post('/delete-room-reference', async (req, res) => {
 //   try {
@@ -131,16 +142,16 @@ io.on('connection', socket => {
       roomStream.on('change', (change) => {
         io.emit('caller snapshot', change);
       });
+      // roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
+      //   snapshot.docChanges().forEach(change => {
+      //     if (change.type === 'added') {
+      //       io.emit('callee snapshot', change.doc.data());
+      //     }
+      //   });
+      // });
     } catch (err) {
       console.log(err)
     }
-    // roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
-    //   snapshot.docChanges().forEach(change => {
-    //     if (change.type === 'added') {
-    //       io.emit('callee snapshot', change.doc.data());
-    //     }
-    //   });
-    // });
   })
 
   // socket.on('join room', async ({ room }) => {
