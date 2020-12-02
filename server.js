@@ -117,7 +117,6 @@ app.post('/delete-room', async (req, res) => {
     await Callee.deleteMany({ room: req.body.room });
     await Caller.deleteMany({ room: req.body.room });
     await Room.findByIdAndDelete(req.body.room);
-    console.log('yes')
     res.status(200).send()
   } catch (err) {
     res.status(400).send(err);
