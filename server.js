@@ -93,7 +93,7 @@ app.post('/set-room-reference/:id', async (req, res) => {
 
 app.post('/update-room-reference', async (req, res) => {
   try {
-    const room = await Room.findById(req.params.id);
+    const room = await Room.findById(req.body.room);
     room.answer = req.body.data;
     await room.save();
     res.json(room._id);
@@ -140,26 +140,26 @@ io.on('connection', socket => {
     try {
       const roomStream = Room.watch({ $match: { _id: roomId } });
       roomStream.on('change', (change) => {
-        io.emit('caller snapshot', change);
+        if (change.updateDescription) {
+          io.emit('caller snapshot', change);
+        }
       });
-      // roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
-      //   snapshot.docChanges().forEach(change => {
-      //     if (change.type === 'added') {
-      //       io.emit('callee snapshot', change.doc.data());
-      //     }
-      //   });
-      // });
+      const calleeStream = Callee.watch({ $match: { room: roomId } })
+      calleeStream.on('change', (change) => {
+        io.emit('callee snapshot', change);
+      });
     } catch (err) {
       console.log(err)
     }
   })
 
-  // socket.on('join room', async ({ room }) => {
-  //   const roomRef = await db.collection('rooms').doc(room);
-  //   roomRef.collection('callerCandidates').onSnapshot(snapshot => {
-  //     io.emit('caller snapshot v2', snapshot.docChanges());
-  //   });
-  // })
+  socket.on('join room', async ({ roomId }) => {
+    const callerStream = Caller.watch({ $match: { room: roomId } })
+    callerStream.on('change', (change) => {
+      console.log(change)
+      io.emit('caller snapshot v2', change);
+    });
+  })
 
   socket.on('disconnect', () => {
     console.log('disconnected')
