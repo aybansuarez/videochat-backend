@@ -8,7 +8,12 @@ const calleeSchema = new Schema({
   },
   candidate: String,
   sdpMLineIndex: Number,
-  sdpMid: String
+  sdpMid: String,
+  date: {
+    type: Date,
+    default: Date.now,
+    index: { unique: true, expires: '1d' }
+  }
 })
 
 module.exports = mongoose.model('Callee', calleeSchema);
