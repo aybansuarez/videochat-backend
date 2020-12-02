@@ -43,7 +43,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 
 // ROUTES
-app.post('/add-caller-candidates', async (req, res) => {
+app.post('/add-callers', async (req, res) => {
   try {
     const caller = new Caller({
       room: db.Types.ObjectId(req.body.room),
@@ -56,7 +56,7 @@ app.post('/add-caller-candidates', async (req, res) => {
   }
 });
 
-app.post('/add-callee-candidates', async (req, res) => {
+app.post('/add-callees', async (req, res) => {
   try {
     const callee = new Callee({
       room: db.Types.ObjectId(req.body.room),
@@ -69,7 +69,7 @@ app.post('/add-callee-candidates', async (req, res) => {
   }
 });
 
-app.post('/create-room-reference', async (req, res) => {
+app.post('/create-room', async (req, res) => {
   try {
     const room = new Room()
     await room.save();
@@ -80,7 +80,7 @@ app.post('/create-room-reference', async (req, res) => {
   }
 });
 
-app.post('/set-room-reference/:id', async (req, res) => {
+app.post('/set-room-offer/:id', async (req, res) => {
   try {
     const room = await Room.findById(req.params.id);
     room.offer = req.body.data;
@@ -91,7 +91,7 @@ app.post('/set-room-reference/:id', async (req, res) => {
   }
 });
 
-app.post('/update-room-reference', async (req, res) => {
+app.post('/set-room-answer', async (req, res) => {
   try {
     const room = await Room.findById(req.body.room);
     room.answer = req.body.data;
@@ -102,7 +102,7 @@ app.post('/update-room-reference', async (req, res) => {
   }
 });
 
-app.get('/join-room-reference/:id', async (req, res) => {
+app.get('/join-room/:id', async (req, res) => {
   try {
     const room = await Room.findById(req.params.id);
 
@@ -112,57 +112,62 @@ app.get('/join-room-reference/:id', async (req, res) => {
   }
 });
 
-// app.post('/delete-room-reference', async (req, res) => {
-//   try {
-//     const roomRef = db.collection('rooms').doc(req.body.room);
-//     const calleeCandidates = await roomRef.collection('calleeCandidates').get();
-//     calleeCandidates.forEach(async candidate => {
-//       await candidate.ref.delete();
-//     });
-//     const callerCandidates = await roomRef.collection('callerCandidates').get();
-//     callerCandidates.forEach(async candidate => {
-//       await candidate.ref.delete();
-//     });
-//     await roomRef.delete();
-
-//     res.status(200).send();
-//   } catch (err) {
-//     res.status(400).send(err);
-//   }
-// });
+app.post('/delete-room', async (req, res) => {
+  try {
+    await Callee.deleteMany({ room: req.body.room });
+    await Caller.deleteMany({ room: req.body.room });
+    await Room.findByIdAndDelete(req.body.room);
+    console.log('yes')
+    res.status(200).send()
+  } catch (err) {
+    res.status(400).send(err);
+  }
+});
 
 // SOCKET
 // socket.io is used to send realtime updates to client when onSnapShot is fired
 io.on('connection', socket => {
-  console.log('connected');
-
-  socket.on('create room', async ({ roomId }) => {
+  socket.on('create room', ({ roomId }) => {
     try {
       const roomStream = Room.watch({ $match: { _id: roomId } });
       roomStream.on('change', (change) => {
         if (change.updateDescription) {
-          io.emit('caller snapshot', change);
+          io.emit('caller snapshot', change.updateDescription);
         }
       });
       const calleeStream = Callee.watch({ $match: { room: roomId } })
       calleeStream.on('change', (change) => {
-        io.emit('callee snapshot', change);
+        if (change.fullDocument) {
+          const candidate = {
+            candidate: change.fullDocument.candidate,
+            sdpMid: change.fullDocument.sdpMid,
+            sdpMLineIndex: change.fullDocument.sdpMLineIndex,
+          }
+          setTimeout(() => {
+            io.emit('callee snapshot', candidate);
+          }, 1000);
+        }
       });
     } catch (err) {
       console.log(err)
     }
   })
 
-  socket.on('join room', async ({ roomId }) => {
+  socket.on('join room', ({ roomId }) => {
     const callerStream = Caller.watch({ $match: { room: roomId } })
     callerStream.on('change', (change) => {
-      console.log(change)
-      io.emit('caller snapshot v2', change);
+      if (change.fullDocument) {
+        const candidate = {
+          candidate: change.fullDocument.candidate,
+          sdpMid: change.fullDocument.sdpMid,
+          sdpMLineIndex: change.fullDocument.sdpMLineIndex,
+        }
+        io.emit('caller snapshot v2', candidate);
+      }
     });
   })
 
   socket.on('disconnect', () => {
     console.log('disconnected')
   });
-
 });
