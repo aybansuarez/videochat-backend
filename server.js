@@ -129,12 +129,12 @@ io.on('connection', socket => {
   socket.on('create room', ({ roomId }) => {
     try {
       const roomStream = Room.watch({ $match: { _id: roomId } });
+      const calleeStream = Callee.watch({ $match: { room: roomId } })
       roomStream.on('change', (change) => {
         if (change.updateDescription) {
           io.emit('caller snapshot', change.updateDescription);
         }
       });
-      const calleeStream = Callee.watch({ $match: { room: roomId } })
       calleeStream.on('change', (change) => {
         if (change.fullDocument) {
           const candidate = {
@@ -144,7 +144,7 @@ io.on('connection', socket => {
           }
           setTimeout(() => {
             io.emit('callee snapshot', candidate);
-          }, 1000);
+          }, 500);
         }
       });
     } catch (err) {
