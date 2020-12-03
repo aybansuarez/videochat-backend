@@ -133,18 +133,18 @@ io.on('connection', socket => {
       roomStream.on('change', (change) => {
         if (change.updateDescription) {
           io.emit('caller snapshot', change.updateDescription);
-        }
-      });
-      calleeStream.on('change', (change) => {
-        if (change.fullDocument) {
-          const candidate = {
-            candidate: change.fullDocument.candidate,
-            sdpMid: change.fullDocument.sdpMid,
-            sdpMLineIndex: change.fullDocument.sdpMLineIndex,
-          }
-          setTimeout(() => {
-            io.emit('callee snapshot', candidate);
-          }, 3000);
+          calleeStream.on('change', (change) => {
+            if (change.fullDocument) {
+              const candidate = {
+                candidate: change.fullDocument.candidate,
+                sdpMid: change.fullDocument.sdpMid,
+                sdpMLineIndex: change.fullDocument.sdpMLineIndex,
+              }
+              setTimeout(() => {
+                io.emit('callee snapshot', candidate);
+              }, 1000);
+            }
+          });
         }
       });
     } catch (err) {
