@@ -128,23 +128,27 @@ app.post('/delete-room', async (req, res) => {
 io.on('connection', socket => {
   socket.on('create room', ({ roomId }) => {
     try {
-      const roomStream = Room.watch({ $match: { _id: roomId } });
-      const calleeStream = Callee.watch({ $match: { room: roomId } })
+      const roomStream = Room.watch(
+        { operationType: 'update', $match: { _id: roomId } }
+      );
+      const calleeStream = Callee.watch(
+        { operationType: 'insert', $match: { room: roomId } }
+      )
       roomStream.on('change', (change) => {
         if (change.updateDescription) {
           io.emit('caller snapshot', change.updateDescription);
-          calleeStream.on('change', (change) => {
-            if (change.fullDocument) {
-              const candidate = {
-                candidate: change.fullDocument.candidate,
-                sdpMid: change.fullDocument.sdpMid,
-                sdpMLineIndex: change.fullDocument.sdpMLineIndex,
-              }
-              setTimeout(() => {
-                io.emit('callee snapshot', candidate);
-              }, 1000);
-            }
-          });
+        }
+      });
+      calleeStream.on('change', (change) => {
+        if (change.operationType !== 'delete') {
+          const candidate = {
+            candidate: change.fullDocument.candidate,
+            sdpMid: change.fullDocument.sdpMid,
+            sdpMLineIndex: change.fullDocument.sdpMLineIndex,
+          }
+          setTimeout(() => {
+            io.emit('callee snapshot', candidate);
+          }, 5000);
         }
       });
     } catch (err) {
@@ -153,7 +157,9 @@ io.on('connection', socket => {
   })
 
   socket.on('join room', ({ roomId }) => {
-    const callerStream = Caller.watch({ $match: { room: roomId } })
+    const callerStream = Caller.watch(
+      { operationType: "update", $match: { room: roomId } }
+    )
     callerStream.on('change', (change) => {
       if (change.fullDocument) {
         const candidate = {
